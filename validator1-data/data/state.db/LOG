@@ -1,0 +1,6 @@
+=============== Nov 8, 2024 (UTC) ===============
+03:16:31.937098 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+03:16:31.938633 db@open opening
+03:16:31.939238 version@stat F·[] S·0B[] Sc·[]
+03:16:31.939755 db@janitor F·2 G·0
+03:16:31.939826 db@open done T·1.152583ms

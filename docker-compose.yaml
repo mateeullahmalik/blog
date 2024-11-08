@@ -11,99 +11,40 @@ services:
       - "9090:9090"    # GRPC
     volumes:
       - ./validator1-data:/root/.blog
-      - ./shared:/shared
     environment:
       - MONIKER=validator1
-    command: >
-      /bin/bash -c "
-      rm -rf /root/.blog/* &&
-      blogd init validator1 --chain-id blog-testnet &&
-      blogd keys add alice --keyring-backend test &&
-      ADDR=$$(blogd keys show alice -a --keyring-backend test) &&
-      echo $$ADDR > /shared/validator1_address &&
-      sleep 5 &&
-      while [ ! -f /shared/validator2_address ] || [ ! -f /shared/validator3_address ]; do sleep 1; done &&
-      VAL2_ADDR=$$(cat /shared/validator2_address) &&
-      VAL3_ADDR=$$(cat /shared/validator3_address) &&
-      blogd genesis add-genesis-account $$ADDR 1000000000000stake,1000000000000token &&
-      blogd genesis add-genesis-account $$VAL2_ADDR 1000000000000stake,1000000000000token &&
-      blogd genesis add-genesis-account $$VAL3_ADDR 1000000000000stake,1000000000000token &&
-      cp /root/.blog/config/genesis.json /shared/genesis.json &&
-      echo 'true' > /shared/genesis_accounts_ready &&
-      blogd genesis gentx alice 900000000000stake --chain-id blog-testnet --keyring-backend test &&
-      cp /root/.blog/config/gentx/*.json /shared/validator1_gentx.json &&
-      while [ ! -f /shared/validator2_gentx.json ] || [ ! -f /shared/validator3_gentx.json ]; do sleep 1; done &&
-      cp /shared/validator2_gentx.json /root/.blog/config/gentx/ &&
-      cp /shared/validator3_gentx.json /root/.blog/config/gentx/ &&
-      blogd genesis collect-gentxs &&
-      cp /root/.blog/config/genesis.json /shared/final_genesis.json &&
-      sed -i 's/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/' /root/.blog/config/app.toml &&
-      echo 'true' > /shared/setup_complete &&
-      blogd start --minimum-gas-prices=0.00001stake"
-
-  validator2:
-    build: .
-    container_name: blog-validator2
-    ports:
-      - "26666:26656"
-      - "26667:26657"
-      - "1327:1317"
-      - "9092:9090"
-    volumes:
-      - ./validator2-data:/root/.blog
-      - ./shared:/shared
-    environment:
-      - MONIKER=validator2
-    depends_on:
-      - validator1
-    command: >
-      /bin/bash -c "
-      rm -rf /root/.blog/* &&
-      blogd init validator2 --chain-id blog-testnet &&
-      blogd keys add bob --keyring-backend test &&
-      ADDR=$$(blogd keys show bob -a --keyring-backend test) &&
-      echo $$ADDR > /shared/validator2_address &&
-      while [ ! -f /shared/genesis_accounts_ready ]; do sleep 1; done &&
-      cp /shared/genesis.json /root/.blog/config/genesis.json &&
-      blogd genesis gentx bob 900000000000stake --chain-id blog-testnet --keyring-backend test &&
-      cp /root/.blog/config/gentx/*.json /shared/validator2_gentx.json &&
-      while [ ! -f /shared/final_genesis.json ]; do sleep 1; done &&
-      cp /shared/final_genesis.json /root/.blog/config/genesis.json &&
-      sed -i 's/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/' /root/.blog/config/app.toml &&
-      while [ ! -f /shared/setup_complete ]; do sleep 1; done &&
-      blogd start --minimum-gas-prices=0.00001stake"
-
-  validator3:
-    build: .
-    container_name: blog-validator3
-    ports:
-      - "26676:26656"
-      - "26677:26657"
-      - "1337:1317"
-      - "9093:9090"
-    volumes:
-      - ./validator3-data:/root/.blog
-      - ./shared:/shared
-    environment:
-      - MONIKER=validator3
-    depends_on:
-      - validator1
-    command: >
-      /bin/bash -c "
-      rm -rf /root/.blog/* &&
-      blogd init validator3 --chain-id blog-testnet &&
-      blogd keys add carol --keyring-backend test &&
-      ADDR=$$(blogd keys show carol -a --keyring-backend test) &&
-      echo $$ADDR > /shared/validator3_address &&
-      while [ ! -f /shared/genesis_accounts_ready ]; do sleep 1; done &&
-      cp /shared/genesis.json /root/.blog/config/genesis.json &&
-      blogd genesis gentx carol 900000000000stake --chain-id blog-testnet --keyring-backend test &&
-      cp /root/.blog/config/gentx/*.json /shared/validator3_gentx.json &&
-      while [ ! -f /shared/final_genesis.json ]; do sleep 1; done &&
-      cp /shared/final_genesis.json /root/.blog/config/genesis.json &&
-      sed -i 's/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/' /root/.blog/config/app.toml &&
-      while [ ! -f /shared/setup_complete ]; do sleep 1; done &&
-      blogd start --minimum-gas-prices=0.00001stake"
+      - CHAIN_ID=blog
+    command: |
+      sh -c '
+      if [ ! -f "/root/.blog/config/genesis.json" ]; then
+        # Initialize the chain
+        blogd init validator1 --chain-id blog
+        
+        # Create validator account
+        blogd keys add alice --keyring-backend test
+        
+        # Add genesis account
+        blogd genesis add-genesis-account $$(blogd keys show alice -a --keyring-backend test) 1000000000stake,1000000000token
+        
+        # Create validator gentx
+        blogd genesis gentx alice 100000000stake --chain-id blog --keyring-backend test
+        
+        # Collect gentxs
+        blogd genesis collect-gentxs
+        
+        # Configure app.toml
+        sed -i "s/^minimum-gas-prices *=.*/minimum-gas-prices = \"0stake\"/" /root/.blog/config/app.toml
+        sed -i "s/^api.enable *=.*/api.enable = true/" /root/.blog/config/app.toml
+        sed -i "s/^api.enabled-unsafe-cors *=.*/api.enabled-unsafe-cors = true/" /root/.blog/config/app.toml
+        sed -i "s/^api.address *=.*/api.address = \"tcp:\/\/0.0.0.0:1317\"/" /root/.blog/config/app.toml
+        
+        # Configure config.toml
+        sed -i "s/^laddr = \"tcp:\/\/127.0.0.1:26657\"/laddr = \"tcp:\/\/0.0.0.0:26657\"/" /root/.blog/config/config.toml
+      fi
+      
+      # Start the chain with minimum gas price flag
+      blogd start --minimum-gas-prices 0stake --rpc.laddr tcp://0.0.0.0:26657 --grpc.address 0.0.0.0:9090'
+    restart: unless-stopped
 
 networks:
   default:

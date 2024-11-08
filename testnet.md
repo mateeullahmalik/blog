@@ -1,159 +1,193 @@
-# Setting Up Multiple Validators at Genesis Time
-This guide demonstrates how to initialize a Cosmos SDK chain with multiple validators from the start.
+# Blog Chain Testnet
 
-## Initial Setup
+A multi-validator testnet setup for the Blog blockchain using Docker Compose.
 
+## Network Architecture
+
+The testnet consists of 3 validator nodes running in separate Docker containers:
+
+| Node | Container Name | Ports (External:Internal) |
+|------|---------------|--------------------------|
+| Validator 1 | blog-validator1 | 26656:26656 (P2P) <br> 26657:26657 (RPC) <br> 1317:1317 (REST) <br> 9090:9090 (GRPC) |
+| Validator 2 | blog-validator2 | 26666:26656 (P2P) <br> 26667:26657 (RPC) <br> 1327:1317 (REST) <br> 9092:9090 (GRPC) |
+| Validator 3 | blog-validator3 | 26676:26656 (P2P) <br> 26677:26657 (RPC) <br> 1337:1317 (REST) <br> 9093:9090 (GRPC) |
+
+## Prerequisites
+
+- Docker
+- Docker Compose
+
+## Setup Instructions
+
+1. Build the blockchain binary:
 ```bash
-# Create network and containers for all validators
-docker network create blog-testnet
-
-# Start containers for all validators
-docker run -d --name validator1 \
-    --network blog-testnet \
-    -p 26656:26656 -p 26657:26657 -p 1317:1317 \
-    blog-chain /bin/bash -c "tail -f /dev/null"
-
-docker run -d --name validator2 \
-    --network blog-testnet \
-    -p 26666:26656 -p 26667:26657 -p 1318:1317 \
-    blog-chain /bin/bash -c "tail -f /dev/null"
-
-docker run -d --name validator3 \
-    --network blog-testnet \
-    -p 26676:26656 -p 26677:26657 -p 1319:1317 \
-    blog-chain /bin/bash -c "tail -f /dev/null"
+ignite chain build
 ```
 
-## Step 1: Initialize All Nodes
+2. Create a `release` directory and copy the binary:
 ```bash
-# Initialize all validators
-docker exec -it validator1 bash -c 'blogd init validator1 --chain-id blog-testnet'
-docker exec -it validator2 bash -c 'blogd init validator2 --chain-id blog-testnet'
-docker exec -it validator3 bash -c 'blogd init validator3 --chain-id blog-testnet'
+mkdir release
+cp build/blogd release/
 ```
 
-## Step 2: Create Keys for All Validators
+3. Start the testnet:
 ```bash
-# Create keys for all validators
-docker exec -it validator1 bash -c 'blogd keys add val1 --keyring-backend test'
-docker exec -it validator2 bash -c 'blogd keys add val2 --keyring-backend test'
-docker exec -it validator3 bash -c 'blogd keys add val3 --keyring-backend test'
-
-# Save addresses for next step
-VAL1_ADDR=$(docker exec -it validator1 bash -c 'blogd keys show val1 -a --keyring-backend test')
-VAL2_ADDR=$(docker exec -it validator2 bash -c 'blogd keys show val2 -a --keyring-backend test')
-VAL3_ADDR=$(docker exec -it validator3 bash -c 'blogd keys show val3 -a --keyring-backend test')
+docker-compose up -d
 ```
 
-## Step 3: Add Genesis Accounts (On validator1)
+4. Check if all validators are running:
 ```bash
-# Add all validator accounts to genesis
-docker exec -it validator1 bash -c \
-"blogd genesis add-genesis-account $VAL1_ADDR 1000000000000stake,1000000000000token && \
- blogd genesis add-genesis-account $VAL2_ADDR 1000000000000stake,1000000000000token && \
- blogd genesis add-genesis-account $VAL3_ADDR 1000000000000stake,1000000000000token"
+docker ps
 ```
 
-## Step 4: Create Gentx for Each Validator
+## Validator Information
+
+### Validator 1 (Primary)
+- Moniker: validator1
+- Account: alice
+- Home: /root/.blog
+- Access REST API: http://localhost:1317
+- Access RPC: http://localhost:26657
+- Access GRPC: http://localhost:9090
+
+### Validator 2
+- Moniker: validator2
+- Account: bob
+- Home: /root/.blog
+- Access REST API: http://localhost:1327
+- Access RPC: http://localhost:26667
+- Access GRPC: http://localhost:9092
+
+### Validator 3
+- Moniker: validator3
+- Account: carol
+- Home: /root/.blog
+- Access REST API: http://localhost:1337
+- Access RPC: http://localhost:26677
+- Access GRPC: http://localhost:9093
+
+## Testing the Network
+
+### Check Node Status
 ```bash
-# Create gentx for validator1 (on validator1)
-docker exec -it validator1 bash -c \
-'blogd genesis gentx val1 900000000000stake \
+# Validator 1
+curl http://localhost:26657/status
+
+# Validator 2
+curl http://localhost:26667/status
+
+# Validator 3
+curl http://localhost:26677/status
+```
+
+### Create a Blog Post (Using Validator 1)
+```bash
+docker exec blog-validator1 blogd tx blog create-post "Hello" "World" \
+  --from alice \
   --chain-id blog-testnet \
-  --moniker="validator1" \
-  --commission-rate="0.10" \
-  --commission-max-rate="0.20" \
-  --commission-max-change-rate="0.01" \
-  --min-self-delegation="1" \
-  --keyring-backend test'
+  --keyring-backend test \
+  -y
+```
 
-# Copy genesis.json to validator2 and validator3
-docker cp validator1:/root/.blog/config/genesis.json /tmp/genesis.json
-docker cp /tmp/genesis.json validator2:/root/.blog/config/genesis.json
-docker cp /tmp/genesis.json validator3:/root/.blog/config/genesis.json
+### Query Posts (Can be done from any validator)
+```bash
+# From Validator 1
+docker exec blog-validator1 blogd q blog list-post
 
-# Create gentx for validator2 (on validator2)
-docker exec -it validator2 bash -c \
-'blogd genesis gentx val2 800000000000stake \
+# From Validator 2
+docker exec blog-validator2 blogd q blog list-post
+
+# From Validator 3
+docker exec blog-validator3 blogd q blog list-post
+```
+
+### Update a Post
+```bash
+docker exec blog-validator1 blogd tx blog update-post "Updated Title" "Updated Body" 0 \
+  --from alice \
   --chain-id blog-testnet \
-  --moniker="validator2" \
-  --commission-rate="0.10" \
-  --commission-max-rate="0.20" \
-  --commission-max-change-rate="0.01" \
-  --min-self-delegation="1" \
-  --keyring-backend test'
+  --keyring-backend test \
+  -y
+```
 
-# Create gentx for validator3 (on validator3)
-docker exec -it validator3 bash -c \
-'blogd genesis gentx val3 700000000000stake \
+### Delete a Post
+```bash
+docker exec blog-validator1 blogd tx blog delete-post 0 \
+  --from alice \
   --chain-id blog-testnet \
-  --moniker="validator3" \
-  --commission-rate="0.10" \
-  --commission-max-rate="0.20" \
-  --commission-max-change-rate="0.01" \
-  --min-self-delegation="1" \
-  --keyring-backend test'
+  --keyring-backend test \
+  -y
 ```
 
-## Step 5: Collect All Gentxs
+## Container Management
+
+### View Logs
 ```bash
-# Copy gentxs from validator2 and validator3 to validator1
-docker cp validator2:/root/.blog/config/gentx/. /tmp/gentx-validator2
-docker cp validator3:/root/.blog/config/gentx/. /tmp/gentx-validator3
-docker cp /tmp/gentx-validator2 validator1:/root/.blog/config/gentx/
-docker cp /tmp/gentx-validator3 validator1:/root/.blog/config/gentx/
+# Validator 1 logs
+docker logs blog-validator1
 
-# Collect all gentxs
-docker exec -it validator1 bash -c 'blogd genesis collect-gentxs'
+# Validator 2 logs
+docker logs blog-validator2
 
-# Copy final genesis to other validators
-docker cp validator1:/root/.blog/config/genesis.json /tmp/genesis.json
-docker cp /tmp/genesis.json validator2:/root/.blog/config/genesis.json
-docker cp /tmp/genesis.json validator3:/root/.blog/config/genesis.json
+# Validator 3 logs
+docker logs blog-validator3
 ```
 
-## Step 6: Set Up Peer Connections
+### Access Container Shell
 ```bash
-# Get node IDs
-VAL1_ID=$(docker exec -it validator1 bash -c 'blogd tendermint show-node-id')
-VAL2_ID=$(docker exec -it validator2 bash -c 'blogd tendermint show-node-id')
-VAL3_ID=$(docker exec -it validator3 bash -c 'blogd tendermint show-node-id')
+# Validator 1 shell
+docker exec -it blog-validator1 sh
 
-# Configure persistent peers for validator1
-docker exec -it validator1 bash -c \
-'sed -i.bak -e "s/^persistent_peers *=.*/persistent_peers = \"'$VAL2_ID@validator2:26656,$VAL3_ID@validator3:26656'\"/" $HOME/.blog/config/config.toml'
+# Validator 2 shell
+docker exec -it blog-validator2 sh
 
-# Configure persistent peers for validator2
-docker exec -it validator2 bash -c \
-'sed -i.bak -e "s/^persistent_peers *=.*/persistent_peers = \"'$VAL1_ID@validator1:26656,$VAL3_ID@validator3:26656'\"/" $HOME/.blog/config/config.toml'
-
-# Configure persistent peers for validator3
-docker exec -it validator3 bash -c \
-'sed -i.bak -e "s/^persistent_peers *=.*/persistent_peers = \"'$VAL1_ID@validator1:26656,$VAL2_ID@validator2:26656'\"/" $HOME/.blog/config/config.toml'
+# Validator 3 shell
+docker exec -it blog-validator3 sh
 ```
 
-## Step 7: Start the Chain
+### Stop the Network
 ```bash
-# Start all validators
-docker exec -it validator1 bash -c 'blogd start'
-docker exec -it validator2 bash -c 'blogd start'
-docker exec -it validator3 bash -c 'blogd start'
+docker-compose down
 ```
 
-## Step 8: Verify Setup
+### Clean Up
+To remove all containers and data:
 ```bash
-# Check validator set
-docker exec -it validator1 bash -c 'blogd query staking validators --output json | jq'
-
-# Check individual validator status
-docker exec -it validator1 bash -c 'blogd status'
-docker exec -it validator2 bash -c 'blogd status'
-docker exec -it validator3 bash -c 'blogd status'
+docker-compose down -v
+rm -rf validator1-data validator2-data validator3-data
 ```
 
-## Key Differences from Single Validator Setup
-1. All validators are included in genesis state
-2. Gentxs from all validators are collected before chain start
-3. Initial stake distribution is determined at genesis
-4. All validators start participating in consensus from block 1
-5. No need for create-validator transactions after chain start
+## Network Details
+
+- Chain ID: blog-testnet
+- Validator Setup: 3 validators
+- Token Denominations: stake, token
+- Block Time: ~5 seconds
+- Consensus: Tendermint
+- Network: All containers run on a custom Docker network named "blog-network"
+
+## Troubleshooting
+
+1. If nodes are not connecting:
+   - Check logs using `docker logs blog-validator1`
+   - Verify persistent peers in config.toml
+   - Ensure ports are correctly mapped
+
+2. If transactions fail:
+   - Verify account has sufficient funds
+   - Check chain-id matches
+   - Ensure correct keyring backend is specified
+
+3. If containers fail to start:
+   - Verify binary is correctly built and placed in release folder
+   - Check Docker logs for specific errors
+   - Ensure no port conflicts on host machine
+
+## Security Notes
+
+This setup is intended for testing and development purposes only. For production:
+- Configure proper security measures
+- Use secure passwords and keys
+- Enable proper firewalls
+- Configure proper persistent storage
+- Set up monitoring and alerting

@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  validator1:
+    build: .
+    container_name: blog-validator1
+    ports:
+      - "26656:26656"  # P2P
+      - "26657:26657"  # RPC
+      - "1317:1317"    # REST
+      - "9090:9090"    # GRPC
+    volumes:
+      - ./validator1-data:/root/.blog
+    environment:
+      - MONIKER=validator1
+      - CHAIN_ID=blog
+    command: |
+      sh -c '
+      if [ ! -f "/root/.blog/config/genesis.json" ]; then
+        # Initialize the chain
+        blogd init validator1 --chain-id blog
+        
+        # Create validator account
+        blogd keys add alice --keyring-backend test
+        
+        # Add genesis account
+        blogd genesis add-genesis-account $$(blogd keys show alice -a --keyring-backend test) 1000000000stake,1000000000token
+        
+        # Create validator gentx
+        blogd genesis gentx alice 100000000stake --chain-id blog --keyring-backend test
+        
+        # Collect gentxs
+        blogd genesis collect-gentxs
+        
+        # Configure app.toml
+        sed -i "s/^minimum-gas-prices *=.*/minimum-gas-prices = \"0stake\"/" /root/.blog/config/app.toml
+        sed -i "s/^api.enable *=.*/api.enable = true/" /root/.blog/config/app.toml
+        sed -i "s/^api.enabled-unsafe-cors *=.*/api.enabled-unsafe-cors = true/" /root/.blog/config/app.toml
+        sed -i "s/^api.address *=.*/api.address = \"tcp:\/\/0.0.0.0:1317\"/" /root/.blog/config/app.toml
+        
+        # Configure config.toml
+        sed -i "s/^laddr = \"tcp:\/\/127.0.0.1:26657\"/laddr = \"tcp:\/\/0.0.0.0:26657\"/" /root/.blog/config/config.toml
+      fi
+      
+      # Start the chain with minimum gas price flag
+      blogd start --minimum-gas-prices 0stake --rpc.laddr tcp://0.0.0.0:26657 --grpc.address 0.0.0.0:9090'
+    restart: unless-stopped
+
+networks:
+  default:
+    name: blog-network

@@ -1,51 +1,104 @@
-# blog
-**blog** is a blockchain built using Cosmos SDK and Tendermint and created with [Ignite CLI](https://ignite.com/cli).
+# Blog Chain Development Setup
 
-## Get started
+Quick guide to run a local 3-validator testnet using Docker Compose.
 
+## Prerequisites
+- Docker
+- Docker Compose
+- Ignite CLI
+
+## Build Process
+
+1. Build the chain binary for multiple platforms:
+```bash
+ignite chain build --release -t linux:amd64 -t darwin:amd64 -t darwin:arm64
 ```
-ignite chain serve
-```
+This command:
+- `--release`: Creates optimized binaries in the `release/` directory
+- `-t linux:amd64`: Linux binary for x86_64 systems (used by Docker)
+- `-t darwin:amd64`: macOS binary for Intel chips
+- `-t darwin:arm64`: macOS binary for Apple Silicon
 
-`serve` command installs dependencies, builds, initializes, and starts your blockchain in development.
+The binaries will be created in the `release/` directory:
+- `blogd-linux-amd64`: For Linux/Docker
+- `blogd-darwin-amd64`: For Intel Macs
+- `blogd-darwin-arm64`: For M1/M2 Macs
 
-### Configure
-
-Your blockchain in development can be configured with `config.yml`. To learn more, see the [Ignite CLI docs](https://docs.ignite.com).
-
-### Web Frontend
-
-Additionally, Ignite CLI offers both Vue and React options for frontend scaffolding:
-
-For a Vue frontend, use: `ignite scaffold vue`
-For a React frontend, use: `ignite scaffold react`
-These commands can be run within your scaffolded blockchain project. 
-
-
-For more information see the [monorepo for Ignite front-end development](https://github.com/ignite/web).
-
-## Release
-To release a new version of your blockchain, create and push a new tag with `v` prefix. A new draft release with the configured targets will be created.
-
-```
-git tag v0.1
-git push origin v0.1
+2. Rename the Linux binary for Docker:
+```bash
+cp release/blogd-linux-amd64 release/blogd
 ```
 
-After a draft release is created, make your final changes from the release page and publish it.
+## Setup & Run
 
-### Install
-To install the latest version of your blockchain node's binary, execute the following command on your machine:
-
+1. Create required directories:
+```bash
+mkdir -p validator1-data validator2-data validator3-data shared
 ```
-curl https://get.ignite.com/username/blog@latest! | sudo bash
+
+2. Start the network:
+```bash
+docker-compose up
 ```
-`username/blog` should match the `username` and `repo_name` of the Github repository to which the source code was pushed. Learn more about [the install process](https://github.com/allinbits/starport-installer).
 
-## Learn more
+## Access Points
 
-- [Ignite CLI](https://ignite.com/cli)
-- [Tutorials](https://docs.ignite.com/guide)
-- [Ignite CLI docs](https://docs.ignite.com)
-- [Cosmos SDK docs](https://docs.cosmos.network)
-- [Developer Chat](https://discord.gg/ignite)
+- Validator1: 
+  - RPC: `localhost:26657`
+  - REST: `localhost:1317`
+  - gRPC: `localhost:9090`
+- Validator2:
+  - RPC: `localhost:26667`
+  - REST: `localhost:1327`
+  - gRPC: `localhost:9092`
+- Validator3:
+  - RPC: `localhost:26677`
+  - REST: `localhost:1337`
+  - gRPC: `localhost:9093`
+
+## Test Accounts
+Using `--keyring-backend test`:
+- alice (validator1): Initial balance 1000000000000stake,1000000000000token
+- bob (validator2): Initial balance 1000000000000stake,1000000000000token
+- carol (validator3): Initial balance 1000000000000stake,1000000000000token
+
+## Common Operations
+
+### Check Validator Status
+```bash
+# Query validators (from validator1)
+docker exec blog-validator1 blogd query staking validators
+
+# Check specific validator status
+docker exec blog-validator1 blogd status
+```
+
+### Submit Transactions
+```bash
+# Create a post from alice's account
+docker exec blog-validator1 blogd tx blog create-post "Title" "Body" --from alice --chain-id blog-testnet --keyring-backend test -y
+```
+
+### Query Chain State
+```bash
+# List all posts
+docker exec blog-validator1 blogd query blog list-post
+
+# Show specific post
+docker exec blog-validator1 blogd query blog show-post 1
+```
+
+## Stop & Reset
+```bash
+# Stop the network
+docker-compose down
+
+# Clean all data (for fresh start)
+rm -rf validator{1,2,3}-data shared/*
+```
+
+## Development Tips
+- Use `docker-compose logs -f` to follow logs from all validators
+- Each validator's data is persisted in its respective `validator{1,2,3}-data` directory
+- The `shared` directory is used for genesis coordination between validators
+- Gas prices are set to 0.00001stake by default

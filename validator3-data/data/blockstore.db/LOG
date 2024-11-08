@@ -1,0 +1,18 @@
+=============== Nov 8, 2024 (UTC) ===============
+10:06:05.628758 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:06:05.632426 db@open opening
+10:06:05.633066 version@stat F·[] S·0B[] Sc·[]
+10:06:05.633676 db@janitor F·2 G·0
+10:06:05.633759 db@open done T·1.2725ms
+11:42:46.455561 db@close closing
+11:42:46.459549 db@close done T·3.877167ms
+=============== Nov 8, 2024 (UTC) ===============
+11:44:14.863743 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+11:44:14.866934 version@stat F·[] S·0B[] Sc·[]
+11:44:14.867322 db@open opening
+11:44:14.868414 journal@recovery F·1
+11:44:14.873727 journal@recovery recovering @1
+11:44:15.101127 memdb@flush created L0@2 N·5040 S·1MiB "BH:..ddb,v2457":"blo..ore,v6"
+11:44:15.102062 version@stat F·[1] S·1MiB[1MiB] Sc·[0.25]
+11:44:15.106859 db@janitor F·3 G·0
+11:44:15.107028 db@open done T·239.578001ms

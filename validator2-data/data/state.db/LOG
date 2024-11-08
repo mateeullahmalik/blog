@@ -1,0 +1,23 @@
+=============== Nov 8, 2024 (UTC) ===============
+10:06:05.624500 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:06:05.626856 db@open opening
+10:06:05.628087 version@stat F·[] S·0B[] Sc·[]
+10:06:05.629582 db@janitor F·2 G·0
+10:06:05.629790 db@open done T·2.830667ms
+11:28:06.272848 memdb@flush N·3423 S·3MiB
+11:28:06.358110 memdb@flush created L0@3 N·3423 S·985KiB "abc..y:1,v7":"val..:99,v489"
+11:28:06.358387 version@stat F·[1] S·985KiB[985KiB] Sc·[0.25]
+11:28:06.359746 memdb@flush committed F·1 T·86.612958ms
+11:28:06.360090 journal@remove removed @1
+11:42:46.462652 db@close closing
+11:42:46.463756 db@close done T·1.092667ms
+=============== Nov 8, 2024 (UTC) ===============
+11:44:15.036938 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+11:44:15.039296 version@stat F·[1] S·985KiB[985KiB] Sc·[0.25]
+11:44:15.039630 db@open opening
+11:44:15.040223 journal@recovery F·1
+11:44:15.040589 journal@recovery recovering @2
+11:44:15.104478 memdb@flush created L0@4 N·783 S·224KiB "abc..685,v3427":"val..842,v4204"
+11:44:15.105268 version@stat F·[2] S·1MiB[1MiB] Sc·[0.50]
+11:44:15.112822 db@janitor F·4 G·0
+11:44:15.113556 db@open done T·73.852251ms

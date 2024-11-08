@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   validator1:
     build: .
@@ -14,32 +12,56 @@ services:
       - ./shared:/shared
     environment:
       - MONIKER=validator1
-    command: >
-      /bin/bash -c "
-      rm -rf /root/.blog/* &&
-      blogd init validator1 --chain-id blog-testnet &&
-      blogd keys add alice --keyring-backend test &&
-      ADDR=$$(blogd keys show alice -a --keyring-backend test) &&
-      echo $$ADDR > /shared/validator1_address &&
-      sleep 5 &&
-      while [ ! -f /shared/validator2_address ] || [ ! -f /shared/validator3_address ]; do sleep 1; done &&
-      VAL2_ADDR=$$(cat /shared/validator2_address) &&
-      VAL3_ADDR=$$(cat /shared/validator3_address) &&
-      blogd genesis add-genesis-account $$ADDR 1000000000000stake,1000000000000token &&
-      blogd genesis add-genesis-account $$VAL2_ADDR 1000000000000stake,1000000000000token &&
-      blogd genesis add-genesis-account $$VAL3_ADDR 1000000000000stake,1000000000000token &&
-      cp /root/.blog/config/genesis.json /shared/genesis.json &&
-      echo 'true' > /shared/genesis_accounts_ready &&
-      blogd genesis gentx alice 900000000000stake --chain-id blog-testnet --keyring-backend test &&
-      cp /root/.blog/config/gentx/*.json /shared/validator1_gentx.json &&
-      while [ ! -f /shared/validator2_gentx.json ] || [ ! -f /shared/validator3_gentx.json ]; do sleep 1; done &&
-      cp /shared/validator2_gentx.json /root/.blog/config/gentx/ &&
-      cp /shared/validator3_gentx.json /root/.blog/config/gentx/ &&
-      blogd genesis collect-gentxs &&
-      cp /root/.blog/config/genesis.json /shared/final_genesis.json &&
-      sed -i 's/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/' /root/.blog/config/app.toml &&
-      echo 'true' > /shared/setup_complete &&
-      blogd start --minimum-gas-prices=0.00001stake"
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator1..."
+        
+        # First time initialization
+        blogd init validator1 --chain-id blog-testnet --overwrite
+        blogd keys add alice --keyring-backend test
+        ADDR=$$(blogd keys show alice -a --keyring-backend test)
+        echo $$ADDR > /shared/validator1_address
+        
+        # Wait for other validators to initialize
+        while [[ ! -f /shared/validator2_address ]] || [[ ! -f /shared/validator3_address ]]; do 
+          echo "Waiting for other validators to initialize..."
+          sleep 1
+        done
+        
+        # Add genesis accounts
+        VAL2_ADDR=$$(cat /shared/validator2_address)
+        VAL3_ADDR=$$(cat /shared/validator3_address)
+        blogd genesis add-genesis-account $$ADDR 1000000000000stake,1000000000000token
+        blogd genesis add-genesis-account $$VAL2_ADDR 1000000000000stake,1000000000000token
+        blogd genesis add-genesis-account $$VAL3_ADDR 1000000000000stake,1000000000000token
+        
+        # Share genesis and create gentx
+        cp /root/.blog/config/genesis.json /shared/genesis.json
+        echo "true" > /shared/genesis_accounts_ready
+        blogd genesis gentx alice 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator1_gentx.json
+        
+        # Wait for other validators gentxs
+        while [[ ! -f /shared/validator2_gentx.json ]] || [[ ! -f /shared/validator3_gentx.json ]]; do
+          echo "Waiting for other validators gentxs..."
+          sleep 1
+        done
+        
+        # Collect gentxs and create final genesis
+        mkdir -p /root/.blog/config/gentx
+        cp /shared/validator2_gentx.json /root/.blog/config/gentx/
+        cp /shared/validator3_gentx.json /root/.blog/config/gentx/
+        blogd genesis collect-gentxs
+        cp /root/.blog/config/genesis.json /shared/final_genesis.json
+        echo "true" > /shared/setup_complete
+      else
+        echo "Validator1 already initialized, starting chain..."
+      fi
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      blogd start --minimum-gas-prices=0.00001stake'
 
   validator2:
     build: .
@@ -56,22 +78,45 @@ services:
       - MONIKER=validator2
     depends_on:
       - validator1
-    command: >
-      /bin/bash -c "
-      rm -rf /root/.blog/* &&
-      blogd init validator2 --chain-id blog-testnet &&
-      blogd keys add bob --keyring-backend test &&
-      ADDR=$$(blogd keys show bob -a --keyring-backend test) &&
-      echo $$ADDR > /shared/validator2_address &&
-      while [ ! -f /shared/genesis_accounts_ready ]; do sleep 1; done &&
-      cp /shared/genesis.json /root/.blog/config/genesis.json &&
-      blogd genesis gentx bob 900000000000stake --chain-id blog-testnet --keyring-backend test &&
-      cp /root/.blog/config/gentx/*.json /shared/validator2_gentx.json &&
-      while [ ! -f /shared/final_genesis.json ]; do sleep 1; done &&
-      cp /shared/final_genesis.json /root/.blog/config/genesis.json &&
-      sed -i 's/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/' /root/.blog/config/app.toml &&
-      while [ ! -f /shared/setup_complete ]; do sleep 1; done &&
-      blogd start --minimum-gas-prices=0.00001stake"
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator2..."
+        
+        # First time initialization
+        blogd init validator2 --chain-id blog-testnet --overwrite
+        blogd keys add bob --keyring-backend test
+        ADDR=$$(blogd keys show bob -a --keyring-backend test)
+        echo $$ADDR > /shared/validator2_address
+        
+        # Wait for genesis file
+        while [[ ! -f /shared/genesis_accounts_ready ]]; do
+          echo "Waiting for genesis accounts..."
+          sleep 1
+        done
+        
+        # Copy genesis and create gentx
+        cp /shared/genesis.json /root/.blog/config/genesis.json
+        blogd genesis gentx bob 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator2_gentx.json
+        
+        # Wait for final genesis
+        while [[ ! -f /shared/final_genesis.json ]]; do
+          echo "Waiting for final genesis..."
+          sleep 1
+        done
+        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+      else
+        echo "Validator2 already initialized, starting chain..."
+      fi
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      while [[ ! -f /shared/setup_complete ]]; do
+        echo "Waiting for setup to complete..."
+        sleep 1
+      done
+      blogd start --minimum-gas-prices=0.00001stake'
 
   validator3:
     build: .
@@ -88,22 +133,45 @@ services:
       - MONIKER=validator3
     depends_on:
       - validator1
-    command: >
-      /bin/bash -c "
-      rm -rf /root/.blog/* &&
-      blogd init validator3 --chain-id blog-testnet &&
-      blogd keys add carol --keyring-backend test &&
-      ADDR=$$(blogd keys show carol -a --keyring-backend test) &&
-      echo $$ADDR > /shared/validator3_address &&
-      while [ ! -f /shared/genesis_accounts_ready ]; do sleep 1; done &&
-      cp /shared/genesis.json /root/.blog/config/genesis.json &&
-      blogd genesis gentx carol 900000000000stake --chain-id blog-testnet --keyring-backend test &&
-      cp /root/.blog/config/gentx/*.json /shared/validator3_gentx.json &&
-      while [ ! -f /shared/final_genesis.json ]; do sleep 1; done &&
-      cp /shared/final_genesis.json /root/.blog/config/genesis.json &&
-      sed -i 's/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/' /root/.blog/config/app.toml &&
-      while [ ! -f /shared/setup_complete ]; do sleep 1; done &&
-      blogd start --minimum-gas-prices=0.00001stake"
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator3..."
+        
+        # First time initialization
+        blogd init validator3 --chain-id blog-testnet --overwrite
+        blogd keys add carol --keyring-backend test
+        ADDR=$$(blogd keys show carol -a --keyring-backend test)
+        echo $$ADDR > /shared/validator3_address
+        
+        # Wait for genesis file
+        while [[ ! -f /shared/genesis_accounts_ready ]]; do
+          echo "Waiting for genesis accounts..."
+          sleep 1
+        done
+        
+        # Copy genesis and create gentx
+        cp /shared/genesis.json /root/.blog/config/genesis.json
+        blogd genesis gentx carol 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator3_gentx.json
+        
+        # Wait for final genesis
+        while [[ ! -f /shared/final_genesis.json ]]; do
+          echo "Waiting for final genesis..."
+          sleep 1
+        done
+        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+      else
+        echo "Validator3 already initialized, starting chain..."
+      fi
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      while [[ ! -f /shared/setup_complete ]]; do
+        echo "Waiting for setup to complete..."
+        sleep 1
+      done
+      blogd start --minimum-gas-prices=0.00001stake'
 
 networks:
   default:

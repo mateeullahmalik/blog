@@ -1,7 +1,7 @@
 {
   "app_name": "blogd",
   "app_version": "",
-  "genesis_time": "2024-11-08T07:16:14.560484792Z",
+  "genesis_time": "2024-11-08T09:52:42.4058513Z",
   "chain_id": "blog-testnet",
   "initial_height": 1,
   "app_hash": null,
@@ -19,21 +19,21 @@
       "accounts": [
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos16hzdevglyqtm8h46v5c3zl3gf58e3mvuxwwpje",
+          "address": "cosmos1y7y2ssgy5fxu9l8yn24ld9ps6hgvz2s3c0m4uu",
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos1xffjer5yngaplgcfuz7gnh2c3auws7qufhld9u",
+          "address": "cosmos1293tdn7t8g0apr4q4ycz9nkdmt8fvyykee5jaa",
           "pub_key": null,
           "account_number": "1",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos17vm3vghtqueva00hya2y4njvz4hwf6hdt3yr8z",
+          "address": "cosmos10x9psyqmd8whm75eqqtjyyr25mvrezt9f9f5lc",
           "pub_key": null,
           "account_number": "2",
           "sequence": "0"
@@ -50,7 +50,7 @@
       },
       "balances": [
         {
-          "address": "cosmos1xffjer5yngaplgcfuz7gnh2c3auws7qufhld9u",
+          "address": "cosmos1y7y2ssgy5fxu9l8yn24ld9ps6hgvz2s3c0m4uu",
           "coins": [
             {
               "denom": "stake",
@@ -63,7 +63,7 @@
           ]
         },
         {
-          "address": "cosmos16hzdevglyqtm8h46v5c3zl3gf58e3mvuxwwpje",
+          "address": "cosmos1293tdn7t8g0apr4q4ycz9nkdmt8fvyykee5jaa",
           "coins": [
             {
               "denom": "stake",
@@ -76,7 +76,7 @@
           ]
         },
         {
-          "address": "cosmos17vm3vghtqueva00hya2y4njvz4hwf6hdt3yr8z",
+          "address": "cosmos10x9psyqmd8whm75eqqtjyyr25mvrezt9f9f5lc",
           "coins": [
             {
               "denom": "stake",

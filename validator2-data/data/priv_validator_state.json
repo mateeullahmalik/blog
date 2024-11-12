@@ -1,7 +1,5 @@
 {
-  "height": "150",
+  "height": "0",
   "round": 0,
-  "step": 2,
-  "signature": "ldZgmX1B7W+0/kp0K79zQM/VSnoH6MAp39sJ3yrHq8ilu7+og8HlaUPFI7ecGsk1RTEdYekDtr5TS1b8gnXPAw==",
-  "signbytes": "2708011196000000000000002A0C08AD9ECDB906109693B88501320C626C6F672D746573746E6574"
+  "step": 0
 }

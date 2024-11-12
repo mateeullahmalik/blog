@@ -1,7 +1,7 @@
 {
   "app_name": "blogd",
   "app_version": "",
-  "genesis_time": "2024-11-12T12:12:39.529123131Z",
+  "genesis_time": "2024-11-12T13:07:51.653959929Z",
   "chain_id": "blog-testnet",
   "initial_height": 1,
   "app_hash": null,
@@ -19,35 +19,35 @@
       "accounts": [
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos1evfkeg5ca24p7uq2ch9vkal5sjv26vq2v0xll6",
+          "address": "cosmos10u9ue9dyp2v92mfs22pk779skga25gc5ehqwuc",
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos1lvm7tasx3eceeyarwpn9fnez9xw0yu6rr5ud0p",
+          "address": "cosmos1qu8e8mse85ky05cq6pvswwvkxxeslf8cqnud8v",
           "pub_key": null,
           "account_number": "1",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos1urkltvlep96nwdt5syuds34frzpay3z7tsdmnz",
+          "address": "cosmos1070e9pvnx6ncj8ewp2rqlhkuqmvv4v5q8v0nnw",
           "pub_key": null,
           "account_number": "2",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos1lrk6mw06uyzlpp9eggvh28jyp27ck84pe7tsn7",
+          "address": "cosmos1qrc67e8jq6um2xqgjdahvnx92pxvyzsmrxct5j",
           "pub_key": null,
           "account_number": "3",
           "sequence": "0"
         },
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "cosmos15860jegqngqyy076qlmejl0fedqv4p6nadz5va",
+          "address": "cosmos15urx0u8mepm3yr6xykzqxspjfu8ycnez2hkk0u",
           "pub_key": null,
           "account_number": "4",
           "sequence": "0"
@@ -64,7 +64,7 @@
       },
       "balances": [
         {
-          "address": "cosmos15860jegqngqyy076qlmejl0fedqv4p6nadz5va",
+          "address": "cosmos1qrc67e8jq6um2xqgjdahvnx92pxvyzsmrxct5j",
           "coins": [
             {
               "denom": "stake",
@@ -77,7 +77,7 @@
           ]
         },
         {
-          "address": "cosmos1evfkeg5ca24p7uq2ch9vkal5sjv26vq2v0xll6",
+          "address": "cosmos1qu8e8mse85ky05cq6pvswwvkxxeslf8cqnud8v",
           "coins": [
             {
               "denom": "stake",
@@ -90,7 +90,7 @@
           ]
         },
         {
-          "address": "cosmos1urkltvlep96nwdt5syuds34frzpay3z7tsdmnz",
+          "address": "cosmos10u9ue9dyp2v92mfs22pk779skga25gc5ehqwuc",
           "coins": [
             {
               "denom": "stake",
@@ -103,7 +103,7 @@
           ]
         },
         {
-          "address": "cosmos1lrk6mw06uyzlpp9eggvh28jyp27ck84pe7tsn7",
+          "address": "cosmos1070e9pvnx6ncj8ewp2rqlhkuqmvv4v5q8v0nnw",
           "coins": [
             {
               "denom": "stake",
@@ -116,7 +116,7 @@
           ]
         },
         {
-          "address": "cosmos1lvm7tasx3eceeyarwpn9fnez9xw0yu6rr5ud0p",
+          "address": "cosmos15urx0u8mepm3yr6xykzqxspjfu8ycnez2hkk0u",
           "coins": [
             {
               "denom": "stake",

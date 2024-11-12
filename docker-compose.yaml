@@ -61,8 +61,13 @@ services:
         blogd genesis collect-gentxs
         cp /root/.blog/config/genesis.json /shared/final_genesis.json
         echo "true" > /shared/setup_complete
+
+        # Share node ID for other validators
+        blogd tendermint show-node-id > /shared/validator1_node_id
       else
         echo "validator1 already initialized, starting chain..."
+        # Ensure node ID is shared even on restart
+        blogd tendermint show-node-id > /shared/validator1_node_id
       fi
       
       # Set gas prices and start chain
@@ -115,8 +120,17 @@ services:
         echo "validator2 already initialized, starting chain..."
       fi
       
-      # Set gas prices and start chain
+      # Set gas prices and persistent peers
       sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      
+      # Wait for validator1's node ID and set persistent peers
+      echo "Waiting for validator1 node ID..."
+      while [[ ! -f /shared/validator1_node_id ]]; do
+        sleep 1
+      done
+      PEER_ID=$$(cat /shared/validator1_node_id)
+      sed -i "s/persistent_peers = \"\"/persistent_peers = \"$$PEER_ID@validator1:26656\"/" /root/.blog/config/config.toml
+      
       while [[ ! -f /shared/setup_complete ]]; do
         echo "Waiting for setup to complete..."
         sleep 1
@@ -169,8 +183,17 @@ services:
         echo "validator3 already initialized, starting chain..."
       fi
       
-      # Set gas prices and start chain
+      # Set gas prices and persistent peers
       sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      
+      # Wait for validator1's node ID and set persistent peers
+      echo "Waiting for validator1 node ID..."
+      while [[ ! -f /shared/validator1_node_id ]]; do
+        sleep 1
+      done
+      PEER_ID=$$(cat /shared/validator1_node_id)
+      sed -i "s/persistent_peers = \"\"/persistent_peers = \"$$PEER_ID@validator1:26656\"/" /root/.blog/config/config.toml
+      
       while [[ ! -f /shared/setup_complete ]]; do
         echo "Waiting for setup to complete..."
         sleep 1
@@ -223,8 +246,17 @@ services:
         echo "validator4 already initialized, starting chain..."
       fi
       
-      # Set gas prices and start chain
+      # Set gas prices and persistent peers
       sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      
+      # Wait for validator1's node ID and set persistent peers
+      echo "Waiting for validator1 node ID..."
+      while [[ ! -f /shared/validator1_node_id ]]; do
+        sleep 1
+      done
+      PEER_ID=$$(cat /shared/validator1_node_id)
+      sed -i "s/persistent_peers = \"\"/persistent_peers = \"$$PEER_ID@validator1:26656\"/" /root/.blog/config/config.toml
+      
       while [[ ! -f /shared/setup_complete ]]; do
         echo "Waiting for setup to complete..."
         sleep 1
@@ -277,8 +309,17 @@ services:
         echo "validator5 already initialized, starting chain..."
       fi
       
-      # Set gas prices and start chain
+      # Set gas prices and persistent peers
       sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      
+      # Wait for validator1's node ID and set persistent peers
+      echo "Waiting for validator1 node ID..."
+      while [[ ! -f /shared/validator1_node_id ]]; do
+        sleep 1
+      done
+      PEER_ID=$$(cat /shared/validator1_node_id)
+      sed -i "s/persistent_peers = \"\"/persistent_peers = \"$$PEER_ID@validator1:26656\"/" /root/.blog/config/config.toml
+      
       while [[ ! -f /shared/setup_complete ]]; do
         echo "Waiting for setup to complete..."
         sleep 1

@@ -91,9 +91,8 @@ func generateGentxWaitAndCollection(configs []ValidatorConfig, currentValidator 
 }
 
 func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig, isFirst bool) string {
-	var command string
 	if isFirst {
-		command = fmt.Sprintf(`    command: |
+		return fmt.Sprintf(`    command: |
       bash -c '
       if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
         echo "First time initialization for %s..."
@@ -119,6 +118,22 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
         echo "%s already initialized, starting chain..."
       fi
       
+      # Get node ID and share it
+      nodeid=$$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/%s_nodeid
+
+      # Wait for other node IDs
+      while [[ %s ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      %s
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      
       # Set gas prices and start chain
       sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
       blogd start --minimum-gas-prices=0.00001stake'`,
@@ -133,9 +148,13 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
 			config.Tokens.GentxStake,
 			config.Name,
 			generateGentxWaitAndCollection(configs, config.Name),
-			config.Name)
-	} else {
-		command = fmt.Sprintf(`    command: |
+			config.Name,
+			config.Name,
+			generatePeerWaitConditions(configs, config.Name),
+			generatePeersString(configs, config.Name))
+	}
+
+	return fmt.Sprintf(`    command: |
       bash -c '
       if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
         echo "First time initialization for %s..."
@@ -166,6 +185,22 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
       else
         echo "%s already initialized, starting chain..."
       fi
+
+      # Get node ID and share it
+      nodeid=$$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/%s_nodeid
+
+      # Wait for other node IDs
+      while [[ %s ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      %s
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
       
       # Set gas prices and start chain
       sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
@@ -174,17 +209,18 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
         sleep 1
       done
       blogd start --minimum-gas-prices=0.00001stake'`,
-			config.Name,
-			config.Moniker,
-			config.KeyName,
-			config.KeyName,
-			config.Name,
-			config.KeyName,
-			config.Tokens.GentxStake,
-			config.Name,
-			config.Name)
-	}
-	return command
+		config.Name,
+		config.Moniker,
+		config.KeyName,
+		config.KeyName,
+		config.Name,
+		config.KeyName,
+		config.Tokens.GentxStake,
+		config.Name,
+		config.Name,
+		config.Name,
+		generatePeerWaitConditions(configs, config.Name),
+		generatePeersString(configs, config.Name))
 }
 
 func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, isFirst bool) string {

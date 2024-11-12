@@ -217,3 +217,42 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
 	script += generateValidatorCommand(config, configs, isFirst)
 	return script
 }
+
+func generatePeerWaitConditions(configs []ValidatorConfig, currentValidator string) string {
+	var conditions []string
+	for _, config := range configs {
+		if config.Name != currentValidator {
+			conditions = append(conditions, fmt.Sprintf("! -f /shared/%s_nodeid", config.Name))
+		}
+	}
+	return strings.Join(conditions, " || ")
+}
+
+func generatePeersString(configs []ValidatorConfig, currentValidator string) string {
+	var peerCommands []string
+	for _, config := range configs {
+		if config.Name != currentValidator {
+			peerCommands = append(peerCommands,
+				fmt.Sprintf("NODE_%s_ID=$$(cat /shared/%s_nodeid)",
+					strings.ToUpper(config.Name),
+					config.Name))
+		}
+	}
+
+	var peerParts []string
+	for _, config := range configs {
+		if config.Name != currentValidator {
+			peerParts = append(peerParts,
+				fmt.Sprintf("$$NODE_%s_ID@%s:%d",
+					strings.ToUpper(config.Name),
+					config.Name,
+					26656))
+		}
+	}
+
+	peerCommands = append(peerCommands,
+		fmt.Sprintf("PEERS=\"%s\"",
+			strings.Join(peerParts, ",")))
+
+	return strings.Join(peerCommands, "\n        ")
+}

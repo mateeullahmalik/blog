@@ -1,0 +1,11 @@
+{
+    "chain_id": "blog-testnet",
+    "keyring_backend": "test",
+    "gas_price": "0.00001stake",
+    "data_dir": "/root/.blog",
+    "binary": {
+        "name": "blogd",
+        "path": "/usr/local/bin/blogd"
+    },
+    "shared_dir": "/shared"
+}

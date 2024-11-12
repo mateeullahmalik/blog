@@ -33,7 +33,7 @@ func generateWaitConditions(configs []ValidatorConfig, currentValidator string) 
 	return fmt.Sprintf("while [[ %s ]]; do\n          echo \"Waiting for other validators to initialize...\"\n          sleep 1\n        done", strings.Join(conditions, " || "))
 }
 
-func generateGenesisAccounts(configs []ValidatorConfig, currentValidator string) string {
+func generateGenesisAccounts(configs []ValidatorConfig, currentValidator string, globalCfg *GlobalConfig) string {
 	var commands []string
 
 	var currentConfig ValidatorConfig
@@ -44,8 +44,10 @@ func generateGenesisAccounts(configs []ValidatorConfig, currentValidator string)
 		}
 	}
 
-	commands = append(commands, fmt.Sprintf("blogd genesis add-genesis-account $$ADDR %s,%s",
-		currentConfig.Tokens.Stake, currentConfig.Tokens.Token))
+	commands = append(commands, fmt.Sprintf("%s genesis add-genesis-account $$ADDR %s,%s",
+		globalCfg.Binary.Name,
+		currentConfig.Tokens.Stake,
+		currentConfig.Tokens.Token))
 
 	for _, config := range configs {
 		if config.Name != currentValidator {
@@ -53,7 +55,8 @@ func generateGenesisAccounts(configs []ValidatorConfig, currentValidator string)
 				fmt.Sprintf("VAL_%s_ADDR=$$(cat /shared/%s_address)",
 					strings.ToUpper(config.Name), config.Name))
 			commands = append(commands,
-				fmt.Sprintf("blogd genesis add-genesis-account $$VAL_%s_ADDR %s,%s",
+				fmt.Sprintf("%s genesis add-genesis-account $$VAL_%s_ADDR %s,%s",
+					globalCfg.Binary.Name,
 					strings.ToUpper(config.Name),
 					config.Tokens.Stake,
 					config.Tokens.Token))
@@ -63,14 +66,14 @@ func generateGenesisAccounts(configs []ValidatorConfig, currentValidator string)
 	return strings.Join(commands, "\n        ")
 }
 
-func generateGentxWaitAndCollection(configs []ValidatorConfig, currentValidator string) string {
+func generateGentxWaitAndCollection(configs []ValidatorConfig, currentValidator string, globalCfg *GlobalConfig) string {
 	var waitConditions []string
 	var copyCommands []string
 
 	for _, config := range configs {
 		if config.Name != currentValidator {
 			waitConditions = append(waitConditions, fmt.Sprintf("! -f /shared/%s_gentx.json", config.Name))
-			copyCommands = append(copyCommands, fmt.Sprintf("cp /shared/%s_gentx.json /root/.blog/config/gentx/", config.Name))
+			copyCommands = append(copyCommands, fmt.Sprintf("cp /shared/%s_gentx.json %s/config/gentx/", config.Name, globalCfg.DataDir))
 		}
 	}
 
@@ -81,26 +84,29 @@ func generateGentxWaitAndCollection(configs []ValidatorConfig, currentValidator 
         done
         
         # Collect gentxs and create final genesis
-        mkdir -p /root/.blog/config/gentx
+        mkdir -p %s/config/gentx
         %s
-        blogd genesis collect-gentxs
-        cp /root/.blog/config/genesis.json /shared/final_genesis.json
+        %s genesis collect-gentxs
+        cp %s/config/genesis.json /shared/final_genesis.json
         echo "true" > /shared/setup_complete`,
 		strings.Join(waitConditions, " || "),
-		strings.Join(copyCommands, "\n        "))
+		globalCfg.DataDir,
+		strings.Join(copyCommands, "\n        "),
+		globalCfg.Binary.Name,
+		globalCfg.DataDir)
 }
 
-func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig, isFirst bool) string {
+func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig, globalCfg *GlobalConfig, isFirst bool) string {
 	if isFirst {
 		return fmt.Sprintf(`    command: |
       bash -c '
-      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+      if [[ ! -f %s/config/genesis.json ]] || [[ ! -f %s/config/priv_validator_key.json ]]; then
         echo "First time initialization for %s..."
         
         # First time initialization
-        blogd init %s --chain-id blog-testnet --overwrite
-        blogd keys add %s --keyring-backend test
-        ADDR=$$(blogd keys show %s -a --keyring-backend test)
+        %s init %s --chain-id %s --overwrite
+        %s keys add %s --keyring-backend %s
+        ADDR=$(%s keys show %s -a --keyring-backend %s)
         echo $$ADDR > /shared/%s_address
         
         %s
@@ -108,10 +114,10 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
         %s
         
         # Share genesis and create gentx
-        cp /root/.blog/config/genesis.json /shared/genesis.json
+        cp %s/config/genesis.json /shared/genesis.json
         echo "true" > /shared/genesis_accounts_ready
-        blogd genesis gentx %s %s --chain-id blog-testnet --keyring-backend test
-        cp /root/.blog/config/gentx/*.json /shared/%s_gentx.json
+        %s genesis gentx %s %s --chain-id %s --keyring-backend %s
+        cp %s/config/gentx/*.json /shared/%s_gentx.json
         
         %s
       else
@@ -119,7 +125,7 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
       fi
       
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(%s tendermint show-node-id)
       echo $$nodeid > /shared/%s_nodeid
 
       # Wait for other node IDs
@@ -132,37 +138,42 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
       %s
 
       # Update persistent peers
-      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" %s/config/config.toml
       
       # Set gas prices and start chain
-      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
-      blogd start --minimum-gas-prices=0.00001stake'`,
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"%s\"/" %s/config/app.toml
+      %s start --minimum-gas-prices=%s'`,
+			globalCfg.DataDir, globalCfg.DataDir,
 			config.Name,
-			config.Moniker,
-			config.KeyName,
-			config.KeyName,
+			globalCfg.Binary.Name, config.Moniker, globalCfg.ChainID,
+			globalCfg.Binary.Name, config.KeyName, globalCfg.KeyringBackend,
+			globalCfg.Binary.Name, config.KeyName, globalCfg.KeyringBackend,
 			config.Name,
 			generateWaitConditions(configs, config.Name),
-			generateGenesisAccounts(configs, config.Name),
-			config.KeyName,
-			config.Tokens.GentxStake,
+			generateGenesisAccounts(configs, config.Name, globalCfg),
+			globalCfg.DataDir,
+			globalCfg.Binary.Name, config.KeyName, config.Tokens.GentxStake, globalCfg.ChainID, globalCfg.KeyringBackend,
+			globalCfg.DataDir, config.Name,
+			generateGentxWaitAndCollection(configs, config.Name, globalCfg),
 			config.Name,
-			generateGentxWaitAndCollection(configs, config.Name),
-			config.Name,
+			globalCfg.Binary.Name,
 			config.Name,
 			generatePeerWaitConditions(configs, config.Name),
-			generatePeersString(configs, config.Name))
+			generatePeersString(configs, config.Name),
+			globalCfg.DataDir,
+			globalCfg.GasPrice, globalCfg.DataDir,
+			globalCfg.Binary.Name, globalCfg.GasPrice)
 	}
 
 	return fmt.Sprintf(`    command: |
       bash -c '
-      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+      if [[ ! -f %s/config/genesis.json ]] || [[ ! -f %s/config/priv_validator_key.json ]]; then
         echo "First time initialization for %s..."
         
         # First time initialization
-        blogd init %s --chain-id blog-testnet --overwrite
-        blogd keys add %s --keyring-backend test
-        ADDR=$$(blogd keys show %s -a --keyring-backend test)
+        %s init %s --chain-id %s --overwrite
+        %s keys add %s --keyring-backend %s
+        ADDR=$(%s keys show %s -a --keyring-backend %s)
         echo $$ADDR > /shared/%s_address
         
         # Wait for genesis file
@@ -172,22 +183,22 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
         done
         
         # Copy genesis and create gentx
-        cp /shared/genesis.json /root/.blog/config/genesis.json
-        blogd genesis gentx %s %s --chain-id blog-testnet --keyring-backend test
-        cp /root/.blog/config/gentx/*.json /shared/%s_gentx.json
+        cp /shared/genesis.json %s/config/genesis.json
+        %s genesis gentx %s %s --chain-id %s --keyring-backend %s
+        cp %s/config/gentx/*.json /shared/%s_gentx.json
         
         # Wait for final genesis
         while [[ ! -f /shared/final_genesis.json ]]; do
           echo "Waiting for final genesis..."
           sleep 1
         done
-        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+        cp /shared/final_genesis.json %s/config/genesis.json
       else
         echo "%s already initialized, starting chain..."
       fi
 
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(%s tendermint show-node-id)
       echo $$nodeid > /shared/%s_nodeid
 
       # Wait for other node IDs
@@ -200,30 +211,36 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
       %s
 
       # Update persistent peers
-      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" %s/config/config.toml
       
       # Set gas prices and start chain
-      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"%s\"/" %s/config/app.toml
       while [[ ! -f /shared/setup_complete ]]; do
         echo "Waiting for setup to complete..."
         sleep 1
       done
-      blogd start --minimum-gas-prices=0.00001stake'`,
+      %s start --minimum-gas-prices=%s'`,
+		globalCfg.DataDir, globalCfg.DataDir,
 		config.Name,
-		config.Moniker,
-		config.KeyName,
-		config.KeyName,
+		globalCfg.Binary.Name, config.Moniker, globalCfg.ChainID,
+		globalCfg.Binary.Name, config.KeyName, globalCfg.KeyringBackend,
+		globalCfg.Binary.Name, config.KeyName, globalCfg.KeyringBackend,
 		config.Name,
-		config.KeyName,
-		config.Tokens.GentxStake,
+		globalCfg.DataDir,
+		globalCfg.Binary.Name, config.KeyName, config.Tokens.GentxStake, globalCfg.ChainID, globalCfg.KeyringBackend,
+		globalCfg.DataDir, config.Name,
+		globalCfg.DataDir,
 		config.Name,
-		config.Name,
+		globalCfg.Binary.Name,
 		config.Name,
 		generatePeerWaitConditions(configs, config.Name),
-		generatePeersString(configs, config.Name))
+		generatePeersString(configs, config.Name),
+		globalCfg.DataDir,
+		globalCfg.GasPrice, globalCfg.DataDir,
+		globalCfg.Binary.Name, globalCfg.GasPrice)
 }
 
-func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, isFirst bool) string {
+func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, globalCfg *GlobalConfig, isFirst bool) string {
 	script := fmt.Sprintf(`    build: .
     container_name: blog-%s
     ports:
@@ -232,7 +249,7 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
       - "%d:%d"    # REST
       - "%d:%d"    # GRPC
     volumes:
-      - ./%s-data:/root/.blog
+      - ./%s-data:%s
       - ./shared:/shared
     environment:
       - MONIKER=%s`,
@@ -241,7 +258,7 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
 		config.RPCPort, 26657,
 		config.RESTPort, 1317,
 		config.GRPCPort, 9090,
-		config.Name,
+		config.Name, globalCfg.DataDir,
 		config.Moniker)
 
 	if !isFirst {
@@ -250,7 +267,7 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
 
 	// Append command with proper indentation
 	script += "\n"
-	script += generateValidatorCommand(config, configs, isFirst)
+	script += generateValidatorCommand(config, configs, globalCfg, isFirst)
 	return script
 }
 

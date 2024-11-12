@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   validator1:
     build: .
@@ -22,7 +20,7 @@ services:
         # First time initialization
         blogd init validator1 --chain-id blog-testnet --overwrite
         blogd keys add alice --keyring-backend test
-        ADDR=$$(blogd keys show alice -a --keyring-backend test)
+        ADDR=$(blogd keys show alice -a --keyring-backend test)
         echo $$ADDR > /shared/validator1_address
         
         while [[ ! -f /shared/validator2_address || ! -f /shared/validator3_address || ! -f /shared/validator4_address || ! -f /shared/validator5_address ]]; do
@@ -66,7 +64,7 @@ services:
       fi
       
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(blogd tendermint show-node-id)
       echo $$nodeid > /shared/validator1_nodeid
 
       # Wait for other node IDs
@@ -111,7 +109,7 @@ services:
         # First time initialization
         blogd init validator2 --chain-id blog-testnet --overwrite
         blogd keys add bob --keyring-backend test
-        ADDR=$$(blogd keys show bob -a --keyring-backend test)
+        ADDR=$(blogd keys show bob -a --keyring-backend test)
         echo $$ADDR > /shared/validator2_address
         
         # Wait for genesis file
@@ -136,7 +134,7 @@ services:
       fi
 
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(blogd tendermint show-node-id)
       echo $$nodeid > /shared/validator2_nodeid
 
       # Wait for other node IDs
@@ -185,7 +183,7 @@ services:
         # First time initialization
         blogd init validator3 --chain-id blog-testnet --overwrite
         blogd keys add charlie --keyring-backend test
-        ADDR=$$(blogd keys show charlie -a --keyring-backend test)
+        ADDR=$(blogd keys show charlie -a --keyring-backend test)
         echo $$ADDR > /shared/validator3_address
         
         # Wait for genesis file
@@ -210,7 +208,7 @@ services:
       fi
 
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(blogd tendermint show-node-id)
       echo $$nodeid > /shared/validator3_nodeid
 
       # Wait for other node IDs
@@ -259,7 +257,7 @@ services:
         # First time initialization
         blogd init validator4 --chain-id blog-testnet --overwrite
         blogd keys add dave --keyring-backend test
-        ADDR=$$(blogd keys show dave -a --keyring-backend test)
+        ADDR=$(blogd keys show dave -a --keyring-backend test)
         echo $$ADDR > /shared/validator4_address
         
         # Wait for genesis file
@@ -284,7 +282,7 @@ services:
       fi
 
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(blogd tendermint show-node-id)
       echo $$nodeid > /shared/validator4_nodeid
 
       # Wait for other node IDs
@@ -333,7 +331,7 @@ services:
         # First time initialization
         blogd init validator5 --chain-id blog-testnet --overwrite
         blogd keys add eve --keyring-backend test
-        ADDR=$$(blogd keys show eve -a --keyring-backend test)
+        ADDR=$(blogd keys show eve -a --keyring-backend test)
         echo $$ADDR > /shared/validator5_address
         
         # Wait for genesis file
@@ -358,7 +356,7 @@ services:
       fi
 
       # Get node ID and share it
-      nodeid=$$(blogd tendermint show-node-id)
+      nodeid=$(blogd tendermint show-node-id)
       echo $$nodeid > /shared/validator5_nodeid
 
       # Wait for other node IDs
@@ -388,3 +386,6 @@ services:
 networks:
   default:
     name: blog-network
+
+volumes:
+  shared:

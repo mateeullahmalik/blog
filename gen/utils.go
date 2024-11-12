@@ -188,8 +188,7 @@ func generateValidatorCommand(config ValidatorConfig, configs []ValidatorConfig,
 }
 
 func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, isFirst bool) string {
-	script := fmt.Sprintf(`
-    build: .
+	script := fmt.Sprintf(`    build: .
     container_name: blog-%s
     ports:
       - "%d:%d"  # P2P
@@ -200,8 +199,7 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
       - ./%s-data:/root/.blog
       - ./shared:/shared
     environment:
-      - MONIKER=%s
-    `,
+      - MONIKER=%s`,
 		config.Name,
 		config.Port, 26656,
 		config.RPCPort, 26657,
@@ -211,9 +209,11 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
 		config.Moniker)
 
 	if !isFirst {
-		script += "    depends_on:\n      - validator1\n"
+		script += "\n    depends_on:\n      - validator1"
 	}
 
+	// Append command with proper indentation
+	script += "\n"
 	script += generateValidatorCommand(config, configs, isFirst)
 	return script
 }

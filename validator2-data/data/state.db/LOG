@@ -16,3 +16,15 @@
 12:50:44.995003 version@stat F·[1] S·253KiB[253KiB] Sc·[0.25]
 12:50:45.003078 db@janitor F·3 G·0
 12:50:45.003341 db@open done T·90.052833ms
+12:52:36.074303 db@close closing
+12:52:36.075756 db@close done T·1.442958ms
+=============== Nov 12, 2024 (UTC) ===============
+12:52:44.789728 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+12:52:44.794966 version@stat F·[1] S·253KiB[253KiB] Sc·[0.25]
+12:52:44.795921 db@open opening
+12:52:44.797317 journal@recovery F·1
+12:52:44.797731 journal@recovery recovering @3
+12:52:44.806449 memdb@flush created L0@5 N·1 S·141B "off..Key,v753":"off..Key,v753"
+12:52:44.816616 version@stat F·[2] S·253KiB[253KiB] Sc·[0.50]
+12:52:44.841452 db@janitor F·4 G·0
+12:52:44.841610 db@open done T·45.566791ms

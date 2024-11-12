@@ -4,3 +4,14 @@
 12:12:53.017469 version@stat F·[] S·0B[] Sc·[]
 12:12:53.018008 db@janitor F·2 G·0
 12:12:53.018097 db@open done T·1.279ms
+12:50:37.335082 db@close closing
+12:50:37.336674 db@close done T·1.577791ms
+=============== Nov 12, 2024 (UTC) ===============
+12:50:45.233111 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+12:50:45.239281 version@stat F·[] S·0B[] Sc·[]
+12:50:45.240332 db@open opening
+12:50:45.241804 journal@recovery F·1
+12:50:45.242558 journal@recovery recovering @1
+12:50:45.245823 version@stat F·[] S·0B[] Sc·[]
+12:50:45.252197 db@janitor F·2 G·0
+12:50:45.252517 db@open done T·12.079625ms

@@ -249,8 +249,8 @@ func generateValidatorScript(config ValidatorConfig, configs []ValidatorConfig, 
       - "%d:%d"    # REST
       - "%d:%d"    # GRPC
     volumes:
-      - ./%s-data:%s
-      - ./shared:/shared
+      - ~/%s-data:%s
+      - ~/shared:/shared
     environment:
       - MONIKER=%s`,
 		config.Name,

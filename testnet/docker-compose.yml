@@ -1,0 +1,393 @@
+version: '3'
+
+services:
+  validator1:
+    build: .
+    container_name: blog-validator1
+    ports:
+      - "26656:26656"  # P2P
+      - "26657:26657"  # RPC
+      - "1317:1317"    # REST
+      - "9090:9090"    # GRPC
+    volumes:
+      - ~/validator1-data:/root/.blog
+      - ~/shared:/shared
+    environment:
+      - MONIKER=validator1
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator1..."
+        
+        # First time initialization
+        blogd init validator1 --chain-id blog-testnet --overwrite
+        blogd keys add alice --keyring-backend test
+        ADDR=$(blogd keys show alice -a --keyring-backend test)
+        echo $$ADDR > /shared/validator1_address
+        
+        while [[ ! -f /shared/validator2_address || ! -f /shared/validator3_address || ! -f /shared/validator4_address || ! -f /shared/validator5_address ]]; do
+          echo "Waiting for other validators to initialize..."
+          sleep 1
+        done
+        
+        blogd genesis add-genesis-account $$ADDR 1000000000000stake,1000000000000token
+        VAL_VALIDATOR2_ADDR=$$(cat /shared/validator2_address)
+        blogd genesis add-genesis-account $$VAL_VALIDATOR2_ADDR 1000000000000stake,1000000000000token
+        VAL_VALIDATOR3_ADDR=$$(cat /shared/validator3_address)
+        blogd genesis add-genesis-account $$VAL_VALIDATOR3_ADDR 1000000000000stake,1000000000000token
+        VAL_VALIDATOR4_ADDR=$$(cat /shared/validator4_address)
+        blogd genesis add-genesis-account $$VAL_VALIDATOR4_ADDR 1000000000000stake,1000000000000token
+        VAL_VALIDATOR5_ADDR=$$(cat /shared/validator5_address)
+        blogd genesis add-genesis-account $$VAL_VALIDATOR5_ADDR 1000000000000stake,1000000000000token
+        
+        # Share genesis and create gentx
+        cp /root/.blog/config/genesis.json /shared/genesis.json
+        echo "true" > /shared/genesis_accounts_ready
+        blogd genesis gentx alice 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator1_gentx.json
+        
+        # Wait for other validators gentxs
+        while [[ ! -f /shared/validator2_gentx.json || ! -f /shared/validator3_gentx.json || ! -f /shared/validator4_gentx.json || ! -f /shared/validator5_gentx.json ]]; do
+          echo "Waiting for other validators gentxs..."
+          sleep 1
+        done
+        
+        # Collect gentxs and create final genesis
+        mkdir -p /root/.blog/config/gentx
+        cp /shared/validator2_gentx.json /root/.blog/config/gentx/
+        cp /shared/validator3_gentx.json /root/.blog/config/gentx/
+        cp /shared/validator4_gentx.json /root/.blog/config/gentx/
+        cp /shared/validator5_gentx.json /root/.blog/config/gentx/
+        blogd genesis collect-gentxs
+        cp /root/.blog/config/genesis.json /shared/final_genesis.json
+        echo "true" > /shared/setup_complete
+      else
+        echo "validator1 already initialized, starting chain..."
+      fi
+      
+      # Get node ID and share it
+      nodeid=$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/validator1_nodeid
+
+      # Wait for other node IDs
+      while [[ ! -f /shared/validator2_nodeid || ! -f /shared/validator3_nodeid || ! -f /shared/validator4_nodeid || ! -f /shared/validator5_nodeid ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      NODE_VALIDATOR2_ID=$$(cat /shared/validator2_nodeid)
+        NODE_VALIDATOR3_ID=$$(cat /shared/validator3_nodeid)
+        NODE_VALIDATOR4_ID=$$(cat /shared/validator4_nodeid)
+        NODE_VALIDATOR5_ID=$$(cat /shared/validator5_nodeid)
+        PEERS="$$NODE_VALIDATOR2_ID@validator2:26656,$$NODE_VALIDATOR3_ID@validator3:26656,$$NODE_VALIDATOR4_ID@validator4:26656,$$NODE_VALIDATOR5_ID@validator5:26656"
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      blogd start --minimum-gas-prices=0.00001stake'
+  validator2:
+    build: .
+    container_name: blog-validator2
+    ports:
+      - "26666:26656"  # P2P
+      - "26667:26657"  # RPC
+      - "1327:1317"    # REST
+      - "9092:9090"    # GRPC
+    volumes:
+      - ~/validator2-data:/root/.blog
+      - ~/shared:/shared
+    environment:
+      - MONIKER=validator2
+    depends_on:
+      - validator1
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator2..."
+        
+        # First time initialization
+        blogd init validator2 --chain-id blog-testnet --overwrite
+        blogd keys add bob --keyring-backend test
+        ADDR=$(blogd keys show bob -a --keyring-backend test)
+        echo $$ADDR > /shared/validator2_address
+        
+        # Wait for genesis file
+        while [[ ! -f /shared/genesis_accounts_ready ]]; do
+          echo "Waiting for genesis accounts..."
+          sleep 1
+        done
+        
+        # Copy genesis and create gentx
+        cp /shared/genesis.json /root/.blog/config/genesis.json
+        blogd genesis gentx bob 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator2_gentx.json
+        
+        # Wait for final genesis
+        while [[ ! -f /shared/final_genesis.json ]]; do
+          echo "Waiting for final genesis..."
+          sleep 1
+        done
+        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+      else
+        echo "validator2 already initialized, starting chain..."
+      fi
+
+      # Get node ID and share it
+      nodeid=$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/validator2_nodeid
+
+      # Wait for other node IDs
+      while [[ ! -f /shared/validator1_nodeid || ! -f /shared/validator3_nodeid || ! -f /shared/validator4_nodeid || ! -f /shared/validator5_nodeid ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      NODE_VALIDATOR1_ID=$$(cat /shared/validator1_nodeid)
+        NODE_VALIDATOR3_ID=$$(cat /shared/validator3_nodeid)
+        NODE_VALIDATOR4_ID=$$(cat /shared/validator4_nodeid)
+        NODE_VALIDATOR5_ID=$$(cat /shared/validator5_nodeid)
+        PEERS="$$NODE_VALIDATOR1_ID@validator1:26656,$$NODE_VALIDATOR3_ID@validator3:26656,$$NODE_VALIDATOR4_ID@validator4:26656,$$NODE_VALIDATOR5_ID@validator5:26656"
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      while [[ ! -f /shared/setup_complete ]]; do
+        echo "Waiting for setup to complete..."
+        sleep 1
+      done
+      blogd start --minimum-gas-prices=0.00001stake'
+  validator3:
+    build: .
+    container_name: blog-validator3
+    ports:
+      - "26676:26656"  # P2P
+      - "26677:26657"  # RPC
+      - "1337:1317"    # REST
+      - "9094:9090"    # GRPC
+    volumes:
+      - ~/validator3-data:/root/.blog
+      - ~/shared:/shared
+    environment:
+      - MONIKER=validator3
+    depends_on:
+      - validator1
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator3..."
+        
+        # First time initialization
+        blogd init validator3 --chain-id blog-testnet --overwrite
+        blogd keys add charlie --keyring-backend test
+        ADDR=$(blogd keys show charlie -a --keyring-backend test)
+        echo $$ADDR > /shared/validator3_address
+        
+        # Wait for genesis file
+        while [[ ! -f /shared/genesis_accounts_ready ]]; do
+          echo "Waiting for genesis accounts..."
+          sleep 1
+        done
+        
+        # Copy genesis and create gentx
+        cp /shared/genesis.json /root/.blog/config/genesis.json
+        blogd genesis gentx charlie 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator3_gentx.json
+        
+        # Wait for final genesis
+        while [[ ! -f /shared/final_genesis.json ]]; do
+          echo "Waiting for final genesis..."
+          sleep 1
+        done
+        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+      else
+        echo "validator3 already initialized, starting chain..."
+      fi
+
+      # Get node ID and share it
+      nodeid=$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/validator3_nodeid
+
+      # Wait for other node IDs
+      while [[ ! -f /shared/validator1_nodeid || ! -f /shared/validator2_nodeid || ! -f /shared/validator4_nodeid || ! -f /shared/validator5_nodeid ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      NODE_VALIDATOR1_ID=$$(cat /shared/validator1_nodeid)
+        NODE_VALIDATOR2_ID=$$(cat /shared/validator2_nodeid)
+        NODE_VALIDATOR4_ID=$$(cat /shared/validator4_nodeid)
+        NODE_VALIDATOR5_ID=$$(cat /shared/validator5_nodeid)
+        PEERS="$$NODE_VALIDATOR1_ID@validator1:26656,$$NODE_VALIDATOR2_ID@validator2:26656,$$NODE_VALIDATOR4_ID@validator4:26656,$$NODE_VALIDATOR5_ID@validator5:26656"
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      while [[ ! -f /shared/setup_complete ]]; do
+        echo "Waiting for setup to complete..."
+        sleep 1
+      done
+      blogd start --minimum-gas-prices=0.00001stake'
+  validator4:
+    build: .
+    container_name: blog-validator4
+    ports:
+      - "26686:26656"  # P2P
+      - "26687:26657"  # RPC
+      - "1347:1317"    # REST
+      - "9096:9090"    # GRPC
+    volumes:
+      - ~/validator4-data:/root/.blog
+      - ~/shared:/shared
+    environment:
+      - MONIKER=validator4
+    depends_on:
+      - validator1
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator4..."
+        
+        # First time initialization
+        blogd init validator4 --chain-id blog-testnet --overwrite
+        blogd keys add dave --keyring-backend test
+        ADDR=$(blogd keys show dave -a --keyring-backend test)
+        echo $$ADDR > /shared/validator4_address
+        
+        # Wait for genesis file
+        while [[ ! -f /shared/genesis_accounts_ready ]]; do
+          echo "Waiting for genesis accounts..."
+          sleep 1
+        done
+        
+        # Copy genesis and create gentx
+        cp /shared/genesis.json /root/.blog/config/genesis.json
+        blogd genesis gentx dave 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator4_gentx.json
+        
+        # Wait for final genesis
+        while [[ ! -f /shared/final_genesis.json ]]; do
+          echo "Waiting for final genesis..."
+          sleep 1
+        done
+        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+      else
+        echo "validator4 already initialized, starting chain..."
+      fi
+
+      # Get node ID and share it
+      nodeid=$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/validator4_nodeid
+
+      # Wait for other node IDs
+      while [[ ! -f /shared/validator1_nodeid || ! -f /shared/validator2_nodeid || ! -f /shared/validator3_nodeid || ! -f /shared/validator5_nodeid ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      NODE_VALIDATOR1_ID=$$(cat /shared/validator1_nodeid)
+        NODE_VALIDATOR2_ID=$$(cat /shared/validator2_nodeid)
+        NODE_VALIDATOR3_ID=$$(cat /shared/validator3_nodeid)
+        NODE_VALIDATOR5_ID=$$(cat /shared/validator5_nodeid)
+        PEERS="$$NODE_VALIDATOR1_ID@validator1:26656,$$NODE_VALIDATOR2_ID@validator2:26656,$$NODE_VALIDATOR3_ID@validator3:26656,$$NODE_VALIDATOR5_ID@validator5:26656"
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      while [[ ! -f /shared/setup_complete ]]; do
+        echo "Waiting for setup to complete..."
+        sleep 1
+      done
+      blogd start --minimum-gas-prices=0.00001stake'
+  validator5:
+    build: .
+    container_name: blog-validator5
+    ports:
+      - "26696:26656"  # P2P
+      - "26697:26657"  # RPC
+      - "1357:1317"    # REST
+      - "9098:9090"    # GRPC
+    volumes:
+      - ~/validator5-data:/root/.blog
+      - ~/shared:/shared
+    environment:
+      - MONIKER=validator5
+    depends_on:
+      - validator1
+    command: |
+      bash -c '
+      if [[ ! -f /root/.blog/config/genesis.json ]] || [[ ! -f /root/.blog/config/priv_validator_key.json ]]; then
+        echo "First time initialization for validator5..."
+        
+        # First time initialization
+        blogd init validator5 --chain-id blog-testnet --overwrite
+        blogd keys add eve --keyring-backend test
+        ADDR=$(blogd keys show eve -a --keyring-backend test)
+        echo $$ADDR > /shared/validator5_address
+        
+        # Wait for genesis file
+        while [[ ! -f /shared/genesis_accounts_ready ]]; do
+          echo "Waiting for genesis accounts..."
+          sleep 1
+        done
+        
+        # Copy genesis and create gentx
+        cp /shared/genesis.json /root/.blog/config/genesis.json
+        blogd genesis gentx eve 900000000000stake --chain-id blog-testnet --keyring-backend test
+        cp /root/.blog/config/gentx/*.json /shared/validator5_gentx.json
+        
+        # Wait for final genesis
+        while [[ ! -f /shared/final_genesis.json ]]; do
+          echo "Waiting for final genesis..."
+          sleep 1
+        done
+        cp /shared/final_genesis.json /root/.blog/config/genesis.json
+      else
+        echo "validator5 already initialized, starting chain..."
+      fi
+
+      # Get node ID and share it
+      nodeid=$(blogd tendermint show-node-id)
+      echo $$nodeid > /shared/validator5_nodeid
+
+      # Wait for other node IDs
+      while [[ ! -f /shared/validator1_nodeid || ! -f /shared/validator2_nodeid || ! -f /shared/validator3_nodeid || ! -f /shared/validator4_nodeid ]]; do
+        echo "Waiting for other node IDs..."
+        sleep 1
+      done
+
+      # Create persistent peers string
+      NODE_VALIDATOR1_ID=$$(cat /shared/validator1_nodeid)
+        NODE_VALIDATOR2_ID=$$(cat /shared/validator2_nodeid)
+        NODE_VALIDATOR3_ID=$$(cat /shared/validator3_nodeid)
+        NODE_VALIDATOR4_ID=$$(cat /shared/validator4_nodeid)
+        PEERS="$$NODE_VALIDATOR1_ID@validator1:26656,$$NODE_VALIDATOR2_ID@validator2:26656,$$NODE_VALIDATOR3_ID@validator3:26656,$$NODE_VALIDATOR4_ID@validator4:26656"
+
+      # Update persistent peers
+      sed -i "s/^persistent_peers *=.*/persistent_peers = \"$$PEERS\"/" /root/.blog/config/config.toml
+      
+      # Set gas prices and start chain
+      sed -i "s/minimum-gas-prices = \"\"/minimum-gas-prices = \"0.00001stake\"/" /root/.blog/config/app.toml
+      while [[ ! -f /shared/setup_complete ]]; do
+        echo "Waiting for setup to complete..."
+        sleep 1
+      done
+      blogd start --minimum-gas-prices=0.00001stake'
+
+networks:
+  default:
+    name: blog-network
+
+volumes:
+  shared:
